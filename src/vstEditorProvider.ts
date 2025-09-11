@@ -57,7 +57,7 @@ export class VstEditorProvider implements vscode.CustomTextEditorProvider {
                 if (isMe || isNarration) {
                     return { is_breaking: false, content: line.line, yuzutalk, arknights: { type: "TEXT" } };
                 } else {
-                    return { char_id: line.characterId, img: avatars[line.characterId] || "", is_breaking: false, content: line.line, yuzutalk, arknights: { type: "TEXT" } };
+                    return { char_id: "ba-" + line.characterId, img: avatars[line.characterId] || "", is_breaking: false, content: line.line, yuzutalk, arknights: { type: "TEXT" } };
                 }
             });
             const chars = Object.entries(avatars).map(([id, img]) => ({ id, img }));
