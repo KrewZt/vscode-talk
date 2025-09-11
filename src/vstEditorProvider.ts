@@ -62,7 +62,7 @@ export class VstEditorProvider implements vscode.CustomTextEditorProvider {
             });
             const chars = Object.entries(avatars).map(([id, img]) => ({ id, img }));
             const exportObject = { chat, chars, custom_chars: [] };
-            const saveUri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(document.uri.fsPath.replace('.vst', '.export.json')), filters: { 'JSON Files': ['json'] } });
+            const saveUri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(document.uri.fsPath.replace('.vst', '.json')), filters: { 'JSON Files': ['json'] } });
             if (saveUri) {
                 const jsonContent = JSON.stringify(exportObject, null, 2);
                 await vscode.workspace.fs.writeFile(saveUri, Buffer.from(jsonContent, 'utf8'));
