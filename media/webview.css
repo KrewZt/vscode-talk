@@ -242,3 +242,78 @@ body {
     color: var(--vscode-input-foreground);
     box-sizing: border-box;
 }
+
+/* 插入按钮/光标 */
+.insert-line-handle {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -8px; /* 显示在两行之间 */
+    height: 16px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.insert-line-handle::before {
+    content: '＋';
+    position: absolute;
+    left: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--vscode-focusBorder);
+    font-weight: bold;
+    opacity: 0; /* 默认隐藏 */
+    transition: opacity 0.2s;
+}
+
+.insert-line-handle:hover::before {
+    opacity: 1; /* 悬停在插入区域时显示加号 */
+}
+
+/* 拖拽效果 */
+.line.dragging {
+    opacity: 0.4; /* 被拖拽的元素半透明 */
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+/* 拖拽悬停时的放置提示 */
+.line.drag-over {
+    border-top: 2px solid var(--vscode-focusBorder);
+}
+
+/* 隐藏最后一个元素的插入 handle，因为无法在末尾插入 */
+.line:last-child .insert-line-handle {
+    display: none;
+}
+
+#drop-zone-top {
+    height: 10px; /* 给它一个可交互的高度 */
+    display: none; /* 默认隐藏 */
+    transition: border-top 0.2s;
+}
+
+#drop-zone-top.drag-over {
+    border-top: 2px solid var(--vscode-focusBorder); /* 激活时显示边框 */
+}
+
+.context-menu {
+    position: absolute;
+    background-color: var(--vscode-menu-background);
+    border: 1px solid var(--vscode-menu-border);
+    border-radius: 5px;
+    box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+    z-index: 1000;
+    padding: 5px 0;
+    min-width: 120px;
+}
+
+.context-menu-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    color: var(--vscode-menu-foreground);
+}
+
+.context-menu-item:hover {
+    background-color: var(--vscode-menu-selectionBackground);
+    color: var(--vscode-menu-selectionForeground);
+}
