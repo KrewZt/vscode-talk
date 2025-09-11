@@ -1,0 +1,18 @@
+/* media/reset.css */
+body {
+	margin: 0;
+	padding: 0;
+	background-color: transparent;
+}
+
+body.vscode-light {
+	color: black;
+}
+
+body.vscode-dark {
+	color: white;
+}
+
+body.vscode-high-contrast {
+	color: red;
+}
