@@ -317,3 +317,29 @@ body {
     background-color: var(--vscode-menu-selectionBackground);
     color: var(--vscode-menu-selectionForeground);
 }
+
+#add-custom-char-btn {
+    width: calc(100% - 16px);
+    margin: 5px 8px 0 8px;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--vscode-button-secondaryBackground);
+    background-color: transparent;
+    color: var(--vscode-button-secondaryForeground);
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#add-custom-char-btn:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
+}
+
+.avatar-modal-form h4 {
+    grid-column: 1 / -1; /* 标题横跨两列 */
+    margin: 15px 0 5px 0;
+    border-bottom: 1px solid var(--vscode-editorWidget-border);
+    padding-bottom: 5px;
+}
+.avatar-modal-form h4:first-child {
+    margin-top: 0;
+}

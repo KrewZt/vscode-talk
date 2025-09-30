@@ -2,7 +2,7 @@
   "name": "vscode-talk",
   "displayName": "vscode-talk",
   "description": "A simple screenplay editor inside VSCode",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "KrewZh",
   "engines": {
     "vscode": "^1.103.0"

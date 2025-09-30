@@ -16,6 +16,7 @@
     const avatarCancelBtn = document.getElementById('avatar-cancel-btn');
     
     let scriptData = [];
+    let customCharacters = [];
     let characterMap = new Map();
     let confirmCallback = null;
     let draggedElement = null;
@@ -74,7 +75,9 @@
         });
     }
 
-    function updateBackend() { vscode.postMessage({ type: 'updateText', payload: scriptData }); }
+    function updateBackend() {
+        vscode.postMessage({ type: 'updateText', payload: { script: scriptData, customCharacters: customCharacters } });
+    }
 
     // --- SECTION: Core Actions ---
     function handleNewLine(index, useNarration) {
@@ -118,22 +121,49 @@
         confirmModal.classList.remove('modal-visible');
         confirmCallback = null;
     }
-    function showAvatarModal(charsToSet) {
+    function showAvatarModal(payload) {
+        const { normalChars, customChars } = payload;
+
         modalContentConfirm.style.display = 'none';
         modalContentAvatar.style.display = 'block';
-        avatarFormContainer.innerHTML = '';
-        charsToSet.forEach(char => {
-            const label = document.createElement('label');
-            label.setAttribute('for', `avatar-input-${char.id}`);
-            label.textContent = char.name;
-            const input = document.createElement('input');
-            input.type = 'text';
-            input.id = `avatar-input-${char.id}`;
-            input.dataset.charId = char.id;
-            input.value = char.defaultImg;
-            avatarFormContainer.appendChild(label);
-            avatarFormContainer.appendChild(input);
-        });
+
+        avatarFormContainer.innerHTML = ''; // 清空旧表单
+
+        if (normalChars.length > 0) {
+            const normalTitle = document.createElement('h4');
+            normalTitle.textContent = '设置角色头像';
+            avatarFormContainer.appendChild(normalTitle);
+            normalChars.forEach(char => {
+                const label = document.createElement('label');
+                label.textContent = char.name;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.dataset.charType = 'normal';
+                input.dataset.charId = char.id;
+                input.value = char.defaultImg;
+                avatarFormContainer.appendChild(label);
+                avatarFormContainer.appendChild(input);
+            });
+        }
+
+        if (customChars.length > 0) {
+            const customTitle = document.createElement('h4');
+            customTitle.textContent = '设置自定义角色UID';
+            avatarFormContainer.appendChild(customTitle);
+            customChars.forEach(char => {
+                const label = document.createElement('label');
+                label.textContent = char.name;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = '请输入最终UID';
+                input.dataset.charType = 'custom';
+                input.dataset.tempId = char.id;
+                input.dataset.charName = char.name;
+                avatarFormContainer.appendChild(label);
+                avatarFormContainer.appendChild(input);
+            });
+        }
+
         confirmModal.classList.add('modal-visible');
     }
     function hideAvatarModal() {
@@ -160,6 +190,11 @@
             menu.appendChild(document.createElement('hr'));
         }
         const searchInput = document.createElement('input'); searchInput.type = 'text'; searchInput.className = 'char-menu-search'; searchInput.placeholder = '搜索全部角色...';
+        const addCustomBtn = document.createElement('button');
+        addCustomBtn.id = 'add-custom-char-btn';
+        addCustomBtn.textContent = '添加自定义人物';
+        addCustomBtn.style.display = 'none'; // 默认隐藏
+
         const listContainer = document.createElement('div'); listContainer.className = 'char-menu-list';
         const populateList = (filter = '') => {
             listContainer.innerHTML = '';
@@ -171,16 +206,52 @@
                 }
             });
         };
-        searchInput.addEventListener('input', () => { const filterText = searchInput.value.trim(); listContainer.style.display = filterText ? 'block' : 'none'; populateList(filterText); });
-        menu.appendChild(searchInput); menu.appendChild(listContainer); document.body.appendChild(menu); listContainer.style.display = 'none';
-        menu.addEventListener('click', (e) => {
-            const target = e.target;
-            const menuItem = target.closest('.character-menu-item');
-            if (menuItem) {
-                const selectedId = menuItem.dataset.charId;
-                if (selectedId) { scriptData[lineIndex].characterId = selectedId; render(); updateBackend(); menu.remove(); }
+        searchInput.addEventListener('input', () => {
+            const filterText = searchInput.value.trim();
+            if (filterText) {
+                listContainer.style.display = 'block';
+                populateList(filterText);
+                // 如果搜索结果为空，且输入了内容，则显示“添加”按钮
+                addCustomBtn.style.display = (listContainer.children.length === 0) ? 'block' : 'none';
+            } else {
+                listContainer.style.display = 'none';
+                addCustomBtn.style.display = 'none';
             }
         });
+        menu.appendChild(addCustomBtn);
+        menu.appendChild(searchInput); menu.appendChild(listContainer); document.body.appendChild(menu); listContainer.style.display = 'none';
+        menu.addEventListener('click', (e) => {
+                    const target = e.target;
+                    const menuItem = target.closest('.character-menu-item');
+                    if (menuItem) {
+                        const selectedId = menuItem.dataset.charId;
+                        if (selectedId) { scriptData[lineIndex].characterId = selectedId; render(); updateBackend(); menu.remove(); }
+                    }
+                });
+                addCustomBtn.onclick = () => {
+            const newName = searchInput.value.trim();
+            if (!newName) return;
+
+            // 检查是否与已有角色重名
+            for (const char of characterMap.values()) {
+                const name = char.short_names['zh-cn'] || char.names['en'];
+                if (name === newName) {
+                    alert('已存在同名角色！');
+                    return;
+                }
+            }
+
+            const newId = `custom_${Date.now()}`;
+            const newChar = { id: newId, name: newName };
+
+            customCharacters.push(newChar);
+            characterMap.set(newId, { id: newId, short_names: { 'zh-cn': newName }, names: { en: newName }});
+
+            scriptData[lineIndex].characterId = newId;
+            render();
+            updateBackend();
+            menu.remove();
+        };
         const btnRect = targetButton.getBoundingClientRect(); menu.style.display = 'block'; menu.style.left = `${btnRect.left}px`; menu.style.top = `${btnRect.bottom + 5}px`; searchInput.focus();
         const closeMenu = (e) => { if (targetButton.contains(e.target)) return; const menuElement = document.querySelector('.character-menu'); if (menuElement && !menuElement.contains(e.target)) { menuElement.remove(); document.removeEventListener('click', closeMenu, true); window.removeEventListener('keydown', keydownHandler, true); } };
         const keydownHandler = (e) => { if (e.key === 'Escape') { const menuElement = document.querySelector('.character-menu'); if (menuElement) { menuElement.remove(); document.removeEventListener('click', closeMenu, true); window.removeEventListener('keydown', keydownHandler, true); } } };
@@ -192,15 +263,47 @@
         const message = event.data;
         switch(message.type) {
             case 'init':
-                characterMap.set('me', { id: 'me', short_names: { 'zh-cn': '我' }, names: { 'en': 'Me' } });
-                characterMap.set('narration', { id: 'narration', short_names: { 'zh-cn': '旁白' }, names: { 'en': 'Narration' } });
-                message.characterData.forEach(char => { characterMap.set(char.id, char); });
-                try {
-                    if (!message.documentText || message.documentText.trim() === '') { scriptData = [{ characterId: 'me', line: '' }]; }
-                    else { scriptData = JSON.parse(message.documentText); }
-                    render();
-                } catch (e) { scriptData = [{ characterId: 'me', line: '文件内容格式错误' }]; render(); }
-                break;
+            // --- 预加载 char.json 中的角色 ---
+            characterMap.set('me', { id: 'me', short_names: { 'zh-cn': '我' }, names: { 'en': 'Me' } });
+            characterMap.set('narration', { id: 'narration', short_names: { 'zh-cn': '旁白' }, names: { 'en': 'Narration' } });
+            message.characterData.forEach(char => { characterMap.set(char.id, char); });
+
+            try {
+                let docData = {};
+                if (!message.documentText || message.documentText.trim() === '') {
+                    // 新文件
+                    docData = {
+                        script: [{ characterId: 'me', line: '' }],
+                        customCharacters: []
+                    };
+                } else {
+                    const parsed = JSON.parse(message.documentText);
+                    if (Array.isArray(parsed)) {
+                        // 【兼容旧格式】如果是旧的数组格式，自动转换
+                        docData = { script: parsed, customCharacters: [] };
+                    } else {
+                        docData = parsed;
+                    }
+                }
+
+                scriptData = docData.script;
+                customCharacters = docData.customCharacters || [];
+
+                // --- 将自定义角色也加入到 characterMap 中 ---
+                customCharacters.forEach(char => {
+                    characterMap.set(char.id, {
+                        id: char.id,
+                        short_names: { 'zh-cn': char.name },
+                        names: { 'en': char.name }
+                    });
+                });
+
+                render();
+            } catch (e) {
+                scriptData = [{ characterId: 'me', line: '文件内容格式错误' }];
+                render();
+            }
+            break;
             case 'showAvatarModal': showAvatarModal(message.payload); break;
         }
     });
@@ -210,10 +313,30 @@
 
     avatarCancelBtn.addEventListener('click', hideAvatarModal);
     avatarConfirmBtn.addEventListener('click', () => {
-        const avatarInputs = avatarFormContainer.querySelectorAll('input');
+        const allInputs = avatarFormContainer.querySelectorAll('input');
         const finalAvatars = {};
-        avatarInputs.forEach(input => { finalAvatars[input.dataset.charId] = input.value; });
-        vscode.postMessage({ type: 'finalExport', payload: { script: scriptData, avatars: finalAvatars } });
+        const customCharMappings = {};
+
+        allInputs.forEach(input => {
+            if (input.dataset.charType === 'normal') {
+                finalAvatars[input.dataset.charId] = input.value;
+            } else if (input.dataset.charType === 'custom') {
+                const tempId = input.dataset.tempId;
+                customCharMappings[tempId] = {
+                    finalId: input.value.trim() || tempId, // 如果用户不填，就用临时ID
+                    name: input.dataset.charName
+                };
+            }
+        });
+
+        vscode.postMessage({
+            type: 'finalExport',
+            payload: {
+                script: scriptData,
+                avatars: finalAvatars,
+                customCharMappings: customCharMappings
+            }
+        });
         hideAvatarModal();
     });
 
@@ -310,19 +433,30 @@
     
     // 【修正】将导出按钮的事件监听器放回正确的位置
     exportBtn.addEventListener('click', () => {
-        const usedCharIds = [...new Set(scriptData.map(line => line.characterId))].filter(id => id !== 'me' && id !== 'narration');
-        const charsToSet = usedCharIds.map(id => {
-            const char = characterMap.get(id);
-            return {
-                id: id,
-                name: char.short_names['zh-cn'] || char.names['en'],
-                defaultImg: (char.images && char.images.length > 0) ? char.images[0] : ''
-            };
+        const usedCharIds = [...new Set(scriptData.map(line => line.characterId))];
+        const normalChars = [];
+        const customChars = [];
+
+        usedCharIds.forEach(id => {
+            if (id === 'me' || id === 'narration') return;
+
+            if (id.startsWith('custom_')) {
+                const char = characterMap.get(id);
+                if (char) customChars.push({ id, name: char.short_names['zh-cn'] });
+            } else {
+                const char = characterMap.get(id);
+                if (char) normalChars.push({
+                    id,
+                    name: char.short_names['zh-cn'] || char.names['en'],
+                    defaultImg: (char.images && char.images.length > 0) ? char.images[0] : ''
+                });
+            }
         });
-        if (charsToSet.length === 0) {
-            vscode.postMessage({ type: 'finalExport', payload: { script: scriptData, avatars: {} } });
+
+        if (normalChars.length === 0 && customChars.length === 0) {
+            vscode.postMessage({ type: 'finalExport', payload: { script: scriptData, avatars: {}, customCharMappings: {} } });
         } else {
-            vscode.postMessage({ type: 'requestExport', payload: charsToSet });
+            vscode.postMessage({ type: 'requestExport', payload: { normalChars, customChars } });
         }
     });
 

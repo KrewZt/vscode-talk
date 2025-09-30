@@ -2,17 +2,16 @@
 import * as vscode from 'vscode';
 
 export class VstEditorProvider implements vscode.CustomTextEditorProvider {
-
+    // ... register 和 constructor 不变 ...
     public static register(context: vscode.ExtensionContext): vscode.Disposable {
         const provider = new VstEditorProvider(context);
         return vscode.window.registerCustomEditorProvider('vscode-talk.vstEditor', provider, {
-            webviewOptions: {
-                retainContextWhenHidden: true,
-            },
+            webviewOptions: { retainContextWhenHidden: true, },
         });
     }
 
     constructor(private readonly context: vscode.ExtensionContext) { }
+
 
     public async resolveCustomTextEditor(
         document: vscode.TextDocument,
@@ -21,9 +20,7 @@ export class VstEditorProvider implements vscode.CustomTextEditorProvider {
     ): Promise<void> {
         webviewPanel.webview.options = {
             enableScripts: true,
-            localResourceRoots: [
-                vscode.Uri.joinPath(this.context.extensionUri, 'media')
-            ]
+            localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'media')]
         };
         webviewPanel.webview.html = this.getHtmlForWebview(webviewPanel.webview);
         
@@ -41,28 +38,77 @@ export class VstEditorProvider implements vscode.CustomTextEditorProvider {
         });
     }
 
-    private updateTextDocument(document: vscode.TextDocument, data: any) {
+    private updateTextDocument(document: vscode.TextDocument, data: { script: any[], customCharacters: any[] }) {
+        // 【修改】现在保存的是一个对象，而不再是数组
         const edit = new vscode.WorkspaceEdit();
-        edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), JSON.stringify(data, null, 2));
+        edit.replace(
+            document.uri,
+            new vscode.Range(0, 0, document.lineCount, 0),
+            JSON.stringify(data, null, 2)
+        );
         vscode.workspace.applyEdit(edit);
     }
     
-    private async exportToJson(document: vscode.TextDocument, data: { script: any[], avatars: { [key: string]: string } }) {
+    private async exportToJson(document: vscode.TextDocument, data: { script: any[], avatars: { [key: string]: string }, customCharMappings: { [key: string]: { finalId: string, name: string } } }) {
         try {
-            const { script, avatars } = data;
+            const { script, avatars, customCharMappings } = data;
+            
+            // 1. 构建 "chat" 列表
             const chat = script.map(line => {
                 const isMe = line.characterId === 'me';
                 const isNarration = line.characterId === 'narration';
+                const isCustom = line.characterId.startsWith('custom_');
+                
                 const yuzutalk = { type: isNarration ? "NARRATION" : "TEXT", avatarState: "AUTO", nameOverride: "" };
+
                 if (isMe || isNarration) {
                     return { is_breaking: false, content: line.line, yuzutalk, arknights: { type: "TEXT" } };
+                } else if (isCustom) {
+                    const finalId = customCharMappings[line.characterId]?.finalId || line.characterId;
+                    return {
+                        char_id: finalId,
+                        img: "uploaded", // 自定义角色 img 始终为 "uploaded"
+                        is_breaking: false,
+                        content: line.line,
+                        yuzutalk,
+                        arknights: { type: "TEXT" }
+                    };
                 } else {
-                    return { char_id: "ba-" + line.characterId, img: avatars[line.characterId] || "", is_breaking: false, content: line.line, yuzutalk, arknights: { type: "TEXT" } };
+                    // 【修正一】为非自定义角色的 char_id 添加 "ba-" 前缀
+                    return {
+                        char_id: `ba-${line.characterId}`,
+                        img: avatars[line.characterId] || "",
+                        is_breaking: false,
+                        content: line.line,
+                        yuzutalk,
+                        arknights: { type: "TEXT" }
+                    };
                 }
             });
-            const chars = Object.entries(avatars).map(([id, img]) => ({ id, img }));
-            const exportObject = { chat, chars, custom_chars: [] };
-            const saveUri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(document.uri.fsPath.replace('.vst', '.json')), filters: { 'JSON Files': ['json'] } });
+
+            // 2. 构建 "chars" 列表
+            // 【修正一】处理非自定义角色，为其 id 添加 "ba-" 前缀
+            const normalCharsList = Object.entries(avatars).map(([id, img]) => ({ id: `ba-${id}`, img }));
+
+            // 【修正二】处理自定义角色，并添加到 chars 列表中
+            const customCharsList = Object.values(customCharMappings).map((mapping: any) => ({
+                id: mapping.finalId,
+                img: "uploaded"
+            }));
+
+            const chars = [...normalCharsList, ...customCharsList];
+            
+            // 3. 构建 "custom_chars" 列表 (此部分逻辑不变)
+            const custom_chars = Object.values(customCharMappings).map((mapping: any) => ({
+                char_id: mapping.finalId,
+                img: "",
+                name: mapping.name
+            }));
+
+            const exportObject = { chat, chars, custom_chars };
+
+            const saveUri = await vscode.window.showSaveDialog({ defaultUri: vscode.Uri.file(document.uri.fsPath.replace('.vst', '.export.json')), filters: { 'JSON Files': ['json'] } });
+
             if (saveUri) {
                 const jsonContent = JSON.stringify(exportObject, null, 2);
                 await vscode.workspace.fs.writeFile(saveUri, Buffer.from(jsonContent, 'utf8'));
@@ -74,48 +120,13 @@ export class VstEditorProvider implements vscode.CustomTextEditorProvider {
     }
 
     private getHtmlForWebview(webview: vscode.Webview): string {
+        // ... 此函数内容无变化 ...
         const scriptUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.js'));
         const resetCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'reset.css'));
         const stylesCssUri = webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'webview.css'));
         const nonce = getNonce();
 
-        return `<!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <link href="${resetCssUri}" rel="stylesheet">
-                <link href="${stylesCssUri}" rel="stylesheet">
-                <title>VST Editor</title>
-            </head>
-            <body>
-                <div id="controls">
-                    <button id="export-btn" class="control-btn" title="导出为兼容格式的JSON文件">导出</button>
-                </div>
-                <div id="lines-container"></div>
-                <div id="confirm-modal" class="modal-overlay">
-                    <div class="modal-box">
-                        <div id="modal-content-confirm">
-                            <p class="modal-message" id="modal-message">确定要执行此操作吗？</p>
-                            <div class="modal-buttons">
-                                <button id="modal-cancel-btn">取消</button>
-                                <button id="modal-confirm-btn">确定</button>
-                            </div>
-                        </div>
-                        <div id="modal-content-avatar" style="display: none;">
-                            <p class="modal-message">设置角色头像</p>
-                            <div id="avatar-modal-form-container" class="avatar-modal-form"></div>
-                            <div class="modal-buttons">
-                                <button id="avatar-cancel-btn">取消</button>
-                                <button id="avatar-confirm-btn">确认并导出</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <script nonce="${nonce}" src="${scriptUri}"></script>
-            </body>
-            </html>`;
+        return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link href="${resetCssUri}" rel="stylesheet"><link href="${stylesCssUri}" rel="stylesheet"><title>VST Editor</title></head><body><div id="controls"><button id="export-btn" class="control-btn" title="导出为兼容格式的JSON文件">导出</button></div><div id="lines-container"></div><div id="confirm-modal" class="modal-overlay"><div class="modal-box"><div id="modal-content-confirm"><p class="modal-message" id="modal-message">确定要执行此操作吗？</p><div class="modal-buttons"><button id="modal-cancel-btn">取消</button><button id="modal-confirm-btn">确定</button></div></div><div id="modal-content-avatar" style="display: none;"><p class="modal-message">导出设置</p><div id="avatar-modal-form-container" class="avatar-modal-form"></div><div class="modal-buttons"><button id="avatar-cancel-btn">取消</button><button id="avatar-confirm-btn">确认并导出</button></div></div></div></div><script nonce="${nonce}" src="${scriptUri}"></script></body></html>`;
     }
 }
 
