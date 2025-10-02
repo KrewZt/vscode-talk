@@ -48,9 +48,9 @@
         while (linesContainer.children.length < scriptData.length) {
             const lineEl = document.createElement('div');
             lineEl.className = 'line';
-            lineEl.draggable = true;
             lineEl.innerHTML = `
                 <button class="character-btn" title="点击切换人物"></button>
+                <div class="drag-handle" draggable="true" title="拖拽排序">⋮</div>
                 <input class="line-input" type="text">
                 <div class="insert-line-handle" title="在此处插入新行"></div>
             `;
@@ -252,7 +252,11 @@
             updateBackend();
             menu.remove();
         };
-        const btnRect = targetButton.getBoundingClientRect(); menu.style.display = 'block'; menu.style.left = `${btnRect.left}px`; menu.style.top = `${btnRect.bottom + 5}px`; searchInput.focus();
+        const btnRect = targetButton.getBoundingClientRect(); 
+        menu.style.display = 'block';
+        menu.style.left = `${btnRect.left + window.scrollX}px`;
+        menu.style.top = `${btnRect.bottom + window.scrollY + 5}px`;
+        searchInput.focus();
         const closeMenu = (e) => { if (targetButton.contains(e.target)) return; const menuElement = document.querySelector('.character-menu'); if (menuElement && !menuElement.contains(e.target)) { menuElement.remove(); document.removeEventListener('click', closeMenu, true); window.removeEventListener('keydown', keydownHandler, true); } };
         const keydownHandler = (e) => { if (e.key === 'Escape') { const menuElement = document.querySelector('.character-menu'); if (menuElement) { menuElement.remove(); document.removeEventListener('click', closeMenu, true); window.removeEventListener('keydown', keydownHandler, true); } } };
         setTimeout(() => { document.addEventListener('click', closeMenu, true); window.addEventListener('keydown', keydownHandler, true); }, 0);
@@ -349,8 +353,8 @@
         if (existingMenu) existingMenu.remove();
         const menu = document.createElement('div');
         menu.className = 'context-menu';
-        menu.style.top = `${e.clientY}px`;
-        menu.style.left = `${e.clientX}px`;
+        menu.style.top = `${e.clientY + window.scrollY}px`;
+        menu.style.left = `${e.clientX + window.scrollX}px`;
         const deleteItem = document.createElement('div');
         deleteItem.className = 'context-menu-item';
         deleteItem.textContent = '删除该行';
@@ -374,18 +378,26 @@
     linesContainer.addEventListener('keydown', (e) => { if (e.target.classList.contains('line-input') && e.key === 'Enter') { e.preventDefault(); const index = parseInt(e.target.closest('.line').dataset.index); handleNewLine(index, e.shiftKey); } });
 
     linesContainer.addEventListener('dragstart', (e) => {
-        const target = e.target.closest('.line');
-        if (target) {
-            draggedElement = target;
-            e.dataTransfer.effectAllowed = 'move';
-            const clone = target.cloneNode(true);
-            clone.style.width = `${target.offsetWidth}px`;
-            clone.style.position = 'absolute';
-            clone.style.left = '-9999px';
-            document.body.appendChild(clone);
-            e.dataTransfer.setDragImage(clone, 0, clone.offsetHeight / 2);
-            setTimeout(() => clone.remove(), 0);
-            setTimeout(() => target.classList.add('dragging'), 0);
+        // 只在拖动 handle 时启动
+        if (e.target.classList.contains('drag-handle')) {
+            const targetLine = e.target.closest('.line');
+            if (targetLine) {
+                draggedElement = targetLine;
+                e.dataTransfer.effectAllowed = 'move';
+
+                const clone = targetLine.cloneNode(true);
+                clone.style.width = `${targetLine.offsetWidth}px`;
+                clone.style.position = 'absolute';
+                clone.style.left = '-9999px';
+                document.body.appendChild(clone);
+                e.dataTransfer.setDragImage(clone, clone.offsetWidth / 2, clone.offsetHeight / 2);
+
+                setTimeout(() => clone.remove(), 0);
+                setTimeout(() => targetLine.classList.add('dragging'), 0);
+            }
+        } else {
+            // 如果拖动的不是 handle，则阻止拖拽
+            e.preventDefault();
         }
     });
 

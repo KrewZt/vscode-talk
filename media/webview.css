@@ -31,7 +31,7 @@ body {
 
 .line {
     display: flex;
-    align-items: flex-start; /* 确保按钮和输入框顶部对齐 */
+    align-items: center; /* 确保按钮和输入框顶部对齐 */
     margin-bottom: 8px;
     gap: 10px; /* 按钮和输入框之间的间距 */
 }
@@ -339,7 +339,24 @@ body {
     margin: 15px 0 5px 0;
     border-bottom: 1px solid var(--vscode-editorWidget-border);
     padding-bottom: 5px;
-}
+} 
 .avatar-modal-form h4:first-child {
     margin-top: 0;
+}
+
+.drag-handle {
+    flex-shrink: 0;
+    width: 18px;
+    height: 24px;
+    cursor: grab; /* 鼠标样式变为“抓取” */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--vscode-disabledForeground);
+    font-size: 20px;
+    letter-spacing: -2px; /* 让点更紧凑 */
+}
+
+.drag-handle:active {
+    cursor: grabbing; /* 按下时的鼠标样式 */
 }
