@@ -17,6 +17,7 @@
     
     let scriptData = [];
     let customCharacters = [];
+    let temporaryCharacters = [];
     let characterMap = new Map();
     let confirmCallback = null;
     let draggedElement = null;
@@ -76,7 +77,7 @@
     }
 
     function updateBackend() {
-        vscode.postMessage({ type: 'updateText', payload: { script: scriptData, customCharacters: customCharacters } });
+        vscode.postMessage({ type: 'updateText', payload: { script: scriptData, customCharacters: customCharacters, temporaryCharacters: temporaryCharacters } });
     }
 
     // --- SECTION: Core Actions ---
@@ -173,6 +174,147 @@
             modalContentAvatar.style.display = 'none';
         }, 200);
     }
+    
+    function showCharacterManagementModal() {
+        modalContentConfirm.style.display = 'none';
+        modalContentAvatar.style.display = 'block';
+        avatarFormContainer.innerHTML = ''; // 清空
+        
+        // 1. 创建 "添加临时人物" 表单
+        const createSection = document.createElement('div');
+        createSection.className = 'char-management-section';
+        // 【修改】将 select 替换为 input 和 results 容器
+        createSection.innerHTML = `
+            <h4>创建临时人物 (化名)</h4>
+            <div id="temp-char-form">
+                <div id="base-char-search-wrapper">
+                    <input type="text" id="base-char-search-input" placeholder="搜索原型角色..." autocomplete="off">
+                    <div id="base-char-results" style="display: none;"></div>
+                </div>
+                <input type="text" id="temp-char-name-input" placeholder="输入临时名称...">
+                <button id="create-temp-char-btn" class="control-btn">创建</button>
+            </div>
+        `;
+        avatarFormContainer.appendChild(createSection);
+
+        // 【新增】处理搜索框逻辑
+        const baseCharSearchInput = document.getElementById('base-char-search-input');
+        const baseCharResults = document.getElementById('base-char-results');
+
+        baseCharSearchInput.addEventListener('input', () => {
+            const filter = baseCharSearchInput.value.trim().toLowerCase();
+            baseCharResults.innerHTML = '';
+
+            if (!filter) {
+                baseCharResults.style.display = 'none';
+                return;
+            }
+
+            const characters = Array.from(characterMap.values())
+                .filter(c => !c.isCustom && !c.isTemporary && c.id !== 'me' && c.id !== 'narration');
+            
+            characters.forEach(char => {
+                const name = char.short_names['zh-cn'] || char.names.en;
+                if (name.toLowerCase().includes(filter)) {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.textContent = name;
+                    item.dataset.charId = char.id;
+                    item.onclick = () => {
+                        baseCharSearchInput.value = name;
+                        baseCharSearchInput.dataset.selectedId = char.id; // 存储ID
+                        baseCharResults.style.display = 'none';
+                    };
+                    baseCharResults.appendChild(item);
+                }
+            });
+            baseCharResults.style.display = baseCharResults.children.length > 0 ? 'block' : 'none';
+        });
+
+        // 点击外部关闭结果列表
+        baseCharSearchInput.addEventListener('focusout', () => {
+            // 延迟关闭，以便能响应 item 的 click 事件
+            setTimeout(() => baseCharResults.style.display = 'none', 150);
+        });
+
+        // 2. 创建 "管理临时人物" 列表 (逻辑不变)
+        const manageSection = document.createElement('div');
+        manageSection.className = 'char-management-section';
+        manageSection.innerHTML = '<h4>管理已有临时人物</h4><div id="temp-char-list"></div>';
+        avatarFormContainer.appendChild(manageSection);
+
+        const populateTempList = () => {
+            const tempList = document.getElementById('temp-char-list');
+            tempList.innerHTML = '';
+            temporaryCharacters.forEach(char => {
+                const baseChar = characterMap.get(char.baseId);
+                const baseName = baseChar ? (baseChar.short_names['zh-cn'] || baseChar.names.en) : '未知';
+                const item = document.createElement('div');
+                item.className = 'temp-char-item';
+                item.innerHTML = `<span><strong>${char.name}</strong> (原型: ${baseName})</span><button class="delete-temp-char-btn" data-id="${char.id}">&times;</button>`;
+                tempList.appendChild(item);
+            });
+        };
+        populateTempList();
+        
+        // 3. 绑定事件
+        document.getElementById('create-temp-char-btn').onclick = () => {
+            // 【修改】从新的搜索框获取 baseId
+            const baseId = baseCharSearchInput.dataset.selectedId;
+            const name = document.getElementById('temp-char-name-input').value.trim();
+
+            if (!baseId) { alert('请先从搜索结果中选择一个原型角色'); return; }
+            if (!name) { alert('临时名称不能为空'); return; }
+
+            const newId = `temp_${Date.now()}`;
+            const newTempChar = { id: newId, baseId: baseId, name: name };
+            
+            temporaryCharacters.push(newTempChar);
+            characterMap.set(newId, { id: newId, baseId: baseId, isTemporary: true, short_names: { 'zh-cn': name }, names: { en: name }});
+            
+            updateBackend();
+            populateTempList(); // 刷新列表
+            document.getElementById('temp-char-name-input').value = '';
+            baseCharSearchInput.value = '';
+            delete baseCharSearchInput.dataset.selectedId;
+        };
+
+        document.getElementById('temp-char-list').onclick = (e) => {
+            if (e.target.classList.contains('delete-temp-char-btn')) {
+                const idToDelete = e.target.dataset.id;
+                const tempCharToDelete = temporaryCharacters.find(tc => tc.id === idToDelete);
+
+                showConfirm(`删除临时人物 "${tempCharToDelete.name}"？所有使用它的对话行将被重置回其原型角色。`, () => {
+                    temporaryCharacters = temporaryCharacters.filter(c => c.id !== idToDelete);
+                    characterMap.delete(idToDelete);
+                    
+                    if (tempCharToDelete) {
+                        scriptData.forEach(line => {
+                            if (line.characterId === idToDelete) {
+                                line.characterId = tempCharToDelete.baseId;
+                            }
+                        });
+                    }
+                    render();
+                    updateBackend();
+                    populateTempList();
+                });
+            }
+        };
+        
+        // 4. 显示模态框
+        avatarConfirmBtn.style.display = 'none'; // 隐藏主确认按钮
+        avatarCancelBtn.textContent = '关闭';
+        confirmModal.classList.add('modal-visible');
+    }
+
+    // 找到 avatarCancelBtn 的监听器，并修改其行为
+    avatarCancelBtn.addEventListener('click', () => {
+        // 恢复按钮的默认状态
+        avatarConfirmBtn.style.display = 'inline-block';
+        avatarCancelBtn.textContent = '取消';
+        hideAvatarModal();
+    });
     function showCharacterMenu(targetButton, lineIndex) {
         const existingMenu = document.querySelector('.character-menu'); if (existingMenu) { existingMenu.remove(); return; }
         const menu = document.createElement('div'); menu.className = 'character-menu';
@@ -267,7 +409,6 @@
         const message = event.data;
         switch(message.type) {
             case 'init':
-            // --- 预加载 char.json 中的角色 ---
             characterMap.set('me', { id: 'me', short_names: { 'zh-cn': '我' }, names: { 'en': 'Me' } });
             characterMap.set('narration', { id: 'narration', short_names: { 'zh-cn': '旁白' }, names: { 'en': 'Narration' } });
             message.characterData.forEach(char => { characterMap.set(char.id, char); });
@@ -275,32 +416,23 @@
             try {
                 let docData = {};
                 if (!message.documentText || message.documentText.trim() === '') {
-                    // 新文件
-                    docData = {
-                        script: [{ characterId: 'me', line: '' }],
-                        customCharacters: []
-                    };
+                    docData = { script: [{ characterId: 'me', line: '' }], customCharacters: [], temporaryCharacters: [] };
                 } else {
                     const parsed = JSON.parse(message.documentText);
                     if (Array.isArray(parsed)) {
-                        // 【兼容旧格式】如果是旧的数组格式，自动转换
-                        docData = { script: parsed, customCharacters: [] };
+                        docData = { script: parsed, customCharacters: [], temporaryCharacters: [] };
                     } else {
                         docData = parsed;
                     }
                 }
 
-                scriptData = docData.script;
+                scriptData = docData.script || [];
                 customCharacters = docData.customCharacters || [];
+                temporaryCharacters = docData.temporaryCharacters || [];
 
-                // --- 将自定义角色也加入到 characterMap 中 ---
-                customCharacters.forEach(char => {
-                    characterMap.set(char.id, {
-                        id: char.id,
-                        short_names: { 'zh-cn': char.name },
-                        names: { 'en': char.name }
-                    });
-                });
+                // 将自定义和临时角色也加入 characterMap
+                customCharacters.forEach(char => characterMap.set(char.id, { id: char.id, isCustom: true, short_names: { 'zh-cn': char.name }, names: { en: char.name }}));
+                temporaryCharacters.forEach(char => characterMap.set(char.id, { id: char.id, baseId: char.baseId, isTemporary: true, short_names: { 'zh-cn': char.name }, names: { en: char.name }}));
 
                 render();
             } catch (e) {
@@ -338,7 +470,8 @@
             payload: {
                 script: scriptData,
                 avatars: finalAvatars,
-                customCharMappings: customCharMappings
+                customCharMappings: customCharMappings,
+                temporaryCharacters: temporaryCharacters
             }
         });
         hideAvatarModal();
@@ -444,29 +577,44 @@
     });
     
     // 【修正】将导出按钮的事件监听器放回正确的位置
+    // 【新增】为“管理角色”按钮绑定点击事件
+    document.getElementById('manage-chars-btn').addEventListener('click', showCharacterManagementModal);
     exportBtn.addEventListener('click', () => {
         const usedCharIds = [...new Set(scriptData.map(line => line.characterId))];
-        const normalChars = [];
+        
         const customChars = [];
+        const charForAvatarSetup = new Map(); // 使用 Map 来根据原型ID去重
 
         usedCharIds.forEach(id => {
             if (id === 'me' || id === 'narration') return;
 
-            if (id.startsWith('custom_')) {
-                const char = characterMap.get(id);
-                if (char) customChars.push({ id, name: char.short_names['zh-cn'] });
+            const char = characterMap.get(id);
+            if (!char) return;
+
+            if (char.isCustom) {
+                customChars.push({ id, name: char.short_names['zh-cn'] });
             } else {
-                const char = characterMap.get(id);
-                if (char) normalChars.push({
-                    id,
-                    name: char.short_names['zh-cn'] || char.names['en'],
-                    defaultImg: (char.images && char.images.length > 0) ? char.images[0] : ''
-                });
+                // 如果是临时人物，获取其原型ID；否则就是它本身
+                const baseId = char.isTemporary ? char.baseId : id;
+                
+                // 如果这个原型角色还没被添加过，就添加它
+                if (!charForAvatarSetup.has(baseId)) {
+                    const baseChar = characterMap.get(baseId);
+                    if (baseChar) {
+                        charForAvatarSetup.set(baseId, {
+                            id: baseId,
+                            name: baseChar.short_names['zh-cn'] || baseChar.names['en'],
+                            defaultImg: (baseChar.images && baseChar.images.length > 0) ? baseChar.images[0] : ''
+                        });
+                    }
+                }
             }
         });
 
+        const normalChars = Array.from(charForAvatarSetup.values());
+
         if (normalChars.length === 0 && customChars.length === 0) {
-            vscode.postMessage({ type: 'finalExport', payload: { script: scriptData, avatars: {}, customCharMappings: {} } });
+            vscode.postMessage({ type: 'finalExport', payload: { script: scriptData, avatars: {}, customCharMappings: {}, temporaryCharacters: temporaryCharacters } });
         } else {
             vscode.postMessage({ type: 'requestExport', payload: { normalChars, customChars } });
         }
