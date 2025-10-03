@@ -1,4 +1,6 @@
 /* media/webview.css */
+
+/* --- Global Styles --- */
 body {
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
@@ -9,6 +11,7 @@ body {
     box-sizing: border-box;
 }
 
+/* --- Controls Bar --- */
 #controls {
     margin-bottom: 15px;
     display: flex;
@@ -29,32 +32,33 @@ body {
     background-color: var(--vscode-button-hoverBackground);
 }
 
+/* --- Dialogue Line Styles --- */
 .line {
     display: flex;
-    align-items: center; /* 确保按钮和输入框顶部对齐 */
+    align-items: center;
     margin-bottom: 8px;
-    gap: 10px; /* 按钮和输入框之间的间距 */
+    gap: 10px;
 }
 
 .character-btn {
-    flex-shrink: 0; /* 防止按钮收缩 */
-    width: 80px; /* 固定按钮宽度 */
-    padding: 5px 0px; /* 按钮内部上下填充 */
+    flex-shrink: 0;
+    width: 80px;
+    padding: 5px 0;
     border: none;
     border-radius: 3px;
     cursor: pointer;
     text-align: center;
     font-size: var(--vscode-font-size);
-    color: var(--vscode-button-foreground); /* 按钮文字颜色保持为VS Code主题前景色 */
+    color: var(--vscode-button-foreground);
     transition: background-color 0.1s ease-in-out;
 }
 
 .character-btn:hover {
-    filter: brightness(1.2); /* 鼠标悬停时稍微提亮 */
+    filter: brightness(1.2);
 }
 
 .line-input {
-    flex-grow: 1; /* 输入框占据剩余空间 */
+    flex-grow: 1;
     border: 1px solid var(--vscode-input-border);
     border-radius: 3px;
     padding: 5px 8px;
@@ -62,16 +66,37 @@ body {
     color: var(--vscode-input-foreground);
     background-color: var(--vscode-input-background);
     transition: border-color 0.1s ease-in-out, background-color 0.1s ease-in-out;
-    min-height: 25px; /* 确保单行输入框有最小高度 */
+    min-height: 25px;
 }
 
 .line-input:focus {
     outline: none;
     border-color: var(--vscode-focusBorder);
-    background-color: var(--vscode-input-background); /* 确保焦点时背景色不变 */
+    background-color: var(--vscode-input-background);
 }
 
-/* Modal styles */
+/* Special line types styling */
+.line.line-type-me .line-input {
+    background-color: rgba(200, 180, 150, 0.3);
+    border-color: rgba(200, 180, 150, 0.5); 
+}
+
+.line.line-type-me .line-input:focus {
+    outline-color: #c8b496;
+    border-color: #c8b496;
+}
+
+.line.line-type-narration .line-input {
+    background-color: rgba(150, 200, 190, 0.3);
+    border-color: rgba(150, 200, 190, 0.5); 
+}
+
+.line.line-type-narration .line-input:focus {
+    outline-color: #96c8be;
+    border-color: #96c8be;
+}
+
+/* --- Modal Styles --- */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -118,25 +143,64 @@ body {
     font-size: 13px;
 }
 
-#modal-cancel-btn, #avatar-cancel-btn {
+#modal-cancel-btn, 
+#avatar-cancel-btn {
     background-color: var(--vscode-button-secondaryBackground);
     color: var(--vscode-button-secondaryForeground);
 }
 
-#modal-cancel-btn:hover, #avatar-cancel-btn:hover {
+#modal-cancel-btn:hover, 
+#avatar-cancel-btn:hover {
     background-color: var(--vscode-button-secondaryHoverBackground);
 }
 
-#modal-confirm-btn, #avatar-confirm-btn {
+#modal-confirm-btn, 
+#avatar-confirm-btn {
     background-color: var(--vscode-button-background);
     color: var(--vscode-button-foreground);
 }
 
-#modal-confirm-btn:hover, #avatar-confirm-btn:hover {
+#modal-confirm-btn:hover, 
+#avatar-confirm-btn:hover {
     background-color: var(--vscode-button-hoverBackground);
 }
 
-/* Character menu styles */
+/* Avatar setup form styles inside the modal */
+.avatar-modal-form {
+    text-align: left;
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 10px;
+    margin-bottom: 20px;
+}
+
+.avatar-modal-form h4 {
+    margin: 15px 0 5px 0;
+    border-bottom: 1px solid var(--vscode-editorWidget-border);
+    padding-bottom: 5px;
+} 
+
+.avatar-modal-form h4:first-child {
+    margin-top: 0;
+}
+
+.avatar-modal-form label {
+    font-weight: bold;
+}
+
+.avatar-modal-form input {
+    width: 100%;
+    padding: 6px 8px;
+    margin-top: 4px; /* Add some space between label and input */
+    margin-bottom: 12px; /* Add space between inputs */
+    border: 1px solid var(--vscode-input-border);
+    border-radius: 3px;
+    background-color: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    box-sizing: border-box;
+}
+
+/* --- Character Selection Menu --- */
 .character-menu {
     position: absolute;
     background-color: var(--vscode-menu-background);
@@ -145,7 +209,7 @@ body {
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     z-index: 100;
     min-width: 180px;
-    max-height: 300px; /* 限制高度，显示滚动条 */
+    max-height: 300px;
     overflow-y: auto;
     padding: 5px 0;
 }
@@ -162,7 +226,7 @@ body {
 }
 
 .char-menu-list {
-    max-height: 200px; /* 限制列表高度，内部滚动 */
+    max-height: 200px;
     overflow-y: auto;
 }
 
@@ -195,103 +259,24 @@ body {
     margin-bottom: 4px;
 }
 
-.line.line-type-me .line-input {
-    background-color: rgba(200, 180, 150, 0.3);
-    border-color: rgba(200, 180, 150, 0.5); 
-}
-
-.line.line-type-me .line-input:focus {
-    outline-color: #c8b496;
-    border-color: #c8b496;
-}
-
-.line.line-type-narration .line-input {
-    background-color: rgba(150, 200, 190, 0.3);
-    border-color: rgba(150, 200, 190, 0.5); 
-}
-
-.line.line-type-narration .line-input:focus {
-    outline-color: #96c8be;
-    border-color: #96c8be;
-}
-
-/* 【新增】头像设置模态框样式 */
-.avatar-modal-form {
-    text-align: left;
-    max-height: 400px;
-    overflow-y: auto;
-    padding-right: 10px;
-    margin-bottom: 20px;
-}
-
-.avatar-modal-form label {
-    font-weight: bold;
-    justify-self: end;
-}
-
-.avatar-modal-form input {
-    width: 100%;
-    padding: 6px 8px;
-    border: 1px solid var(--vscode-input-border);
-    border-radius: 3px;
-    background-color: var(--vscode-input-background);
-    color: var(--vscode-input-foreground);
+#add-custom-char-btn {
+    width: calc(100% - 16px);
+    margin: 5px 8px 0 8px;
+    padding: 8px;
     box-sizing: border-box;
-}
-
-/* 插入按钮/光标 */
-.insert-line-handle {
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: -8px; /* 显示在两行之间 */
-    height: 16px;
+    border: 1px solid var(--vscode-button-secondaryBackground);
+    background-color: transparent;
+    color: var(--vscode-button-secondaryForeground);
+    border-radius: 3px;
     cursor: pointer;
-    z-index: 10;
 }
 
-.insert-line-handle::before {
-    content: '＋';
-    position: absolute;
-    left: -15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--vscode-focusBorder);
-    font-weight: bold;
-    opacity: 0; /* 默认隐藏 */
-    transition: opacity 0.2s;
+#add-custom-char-btn:hover {
+    background-color: var(--vscode-button-secondaryHoverBackground);
 }
 
-.insert-line-handle:hover::before {
-    opacity: 1; /* 悬停在插入区域时显示加号 */
-}
 
-/* 拖拽效果 */
-.line.dragging {
-    opacity: 0.4; /* 被拖拽的元素半透明 */
-    background-color: var(--vscode-list-activeSelectionBackground);
-}
-
-/* 拖拽悬停时的放置提示 */
-.line.drag-over {
-    border-top: 2px solid var(--vscode-focusBorder);
-}
-
-/* 隐藏最后一个元素的插入 handle，因为无法在末尾插入 */
-.line:last-child .insert-line-handle {
-    display: none;
-}
-
-#drop-zone-top {
-    height: 10px; /* 给它一个可交互的高度 */
-    display: none; /* 默认隐藏 */
-    transition: border-top 0.2s;
-}
-
-#drop-zone-top.drag-over {
-    border-top: 2px solid var(--vscode-focusBorder); /* 激活时显示边框 */
-}
-
+/* --- Context Menu (Right Click) --- */
 .context-menu {
     position: absolute;
     background-color: var(--vscode-menu-background);
@@ -314,50 +299,78 @@ body {
     color: var(--vscode-menu-selectionForeground);
 }
 
-#add-custom-char-btn {
-    width: calc(100% - 16px);
-    margin: 5px 8px 0 8px;
-    padding: 8px;
-    box-sizing: border-box;
-    border: 1px solid var(--vscode-button-secondaryBackground);
-    background-color: transparent;
-    color: var(--vscode-button-secondaryForeground);
-    border-radius: 3px;
-    cursor: pointer;
-}
-
-#add-custom-char-btn:hover {
-    background-color: var(--vscode-button-secondaryHoverBackground);
-}
-
-.avatar-modal-form h4 {
-    grid-column: 1 / -1; /* 标题横跨两列 */
-    margin: 15px 0 5px 0;
-    border-bottom: 1px solid var(--vscode-editorWidget-border);
-    padding-bottom: 5px;
-} 
-.avatar-modal-form h4:first-child {
-    margin-top: 0;
-}
-
+/* --- Drag and Drop & Insertion Styles --- */
 .drag-handle {
     flex-shrink: 0;
     width: 18px;
     height: 24px;
-    cursor: grab; /* 鼠标样式变为“抓取” */
+    cursor: grab;
     display: flex;
     justify-content: center;
     align-items: center;
     color: var(--vscode-disabledForeground);
     font-size: 20px;
-    letter-spacing: -2px; /* 让点更紧凑 */
+    letter-spacing: -2px;
 }
 
 .drag-handle:active {
-    cursor: grabbing; /* 按下时的鼠标样式 */
+    cursor: grabbing;
 }
 
-/* 【新增】角色管理模态框样式 */
+.line.dragging {
+    opacity: 0.4;
+    background-color: var(--vscode-list-activeSelectionBackground);
+}
+
+/* Visual cue for where an item will be dropped */
+.line.drag-over {
+    border-top: 2px solid var(--vscode-focusBorder);
+}
+
+/* Drop zone at the very top of the list */
+#drop-zone-top {
+    height: 10px;
+    display: block; /* Always present but invisible */
+    border-top: 2px solid transparent; /* Occupies space */
+    transition: border-top 0.2s;
+}
+
+#drop-zone-top.drag-over {
+    border-top: 2px solid var(--vscode-focusBorder);
+}
+
+/* "Insert new line here" handle */
+.insert-line-handle {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: -8px; /* Position between two lines */
+    height: 16px;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.insert-line-handle::before {
+    content: '＋';
+    position: absolute;
+    left: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--vscode-focusBorder);
+    font-weight: bold;
+    opacity: 0; /* Hidden by default */
+    transition: opacity 0.2s;
+}
+
+.insert-line-handle:hover::before {
+    opacity: 1; /* Show plus icon on hover */
+}
+
+.line:last-child .insert-line-handle {
+    display: none; /* No need for an insert handle after the last line */
+}
+
+/* --- Character Management Modal --- */
 .char-management-section {
     text-align: left;
     margin-bottom: 20px;
@@ -368,13 +381,16 @@ body {
     border-bottom: 1px solid var(--vscode-editorWidget-border);
     padding-bottom: 5px;
 }
+
 #temp-char-form {
     display: grid;
     grid-template-columns: 1fr 1fr auto;
     gap: 10px;
     align-items: center;
 }
-#temp-char-form select, #temp-char-form input {
+
+#temp-char-form select, 
+#temp-char-form input {
     width: 100%;
     padding: 6px 8px;
     border: 1px solid var(--vscode-input-border);
@@ -383,6 +399,7 @@ body {
     color: var(--vscode-input-foreground);
     box-sizing: border-box;
 }
+
 #temp-char-list {
     max-height: 150px;
     overflow-y: auto;
@@ -390,6 +407,7 @@ body {
     border-radius: 3px;
     padding: 5px;
 }
+
 .temp-char-item {
     display: flex;
     justify-content: space-between;
@@ -397,13 +415,20 @@ body {
     padding: 5px 8px;
     border-radius: 3px;
 }
+
 .temp-char-item:hover {
     background-color: var(--vscode-list-hoverBackground);
 }
+
 .delete-temp-char-btn {
-    background: none; border: none; color: var(--vscode-foreground); cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--vscode-foreground);
+    cursor: pointer;
+    font-size: 16px; /* Make the 'x' a bit larger */
 }
 
+/* Search functionality within the modal */
 #base-char-search-wrapper {
     position: relative;
 }
@@ -417,7 +442,7 @@ body {
     border: 1px solid var(--vscode-menu-border);
     border-top: none;
     border-radius: 0 0 3px 3px;
-    z-index: 1100; /* 要比模态框更高 */
+    z-index: 1100; /* Must be higher than the modal overlay */
     max-height: 150px;
     overflow-y: auto;
 }
@@ -431,11 +456,4 @@ body {
 #base-char-results .result-item:hover {
     background-color: var(--vscode-menu-selectionBackground);
     color: var(--vscode-menu-selectionForeground);
-}
-
-#temp-char-form {
-    display: grid;
-    grid-template-columns: 1fr 1fr auto;
-    gap: 10px;
-    align-items: center;
 }
