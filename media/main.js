@@ -308,15 +308,27 @@
                     item.className = 'result-item';
                     item.textContent = name;
                     item.dataset.charId = char.id;
-                    item.onclick = () => {
-                        baseCharSearchInput.value = name;
-                        baseCharSearchInput.dataset.selectedId = char.id; // 存储选中的原型ID
-                        baseCharResults.style.display = 'none';
-                    };
                     baseCharResults.appendChild(item);
                 }
             });
             baseCharResults.style.display = baseCharResults.children.length > 0 ? 'block' : 'none';
+        });
+
+        // 使用 mousedown 事件代替 click 来处理搜索结果的选择，以避免与输入框的 focusout 事件发生竞态条件
+        baseCharResults.addEventListener('mousedown', (e) => {
+            // 阻止 mousedown 事件的默认行为（即导致输入框失焦），从而彻底消除竞态条件
+            e.preventDefault(); 
+            
+            const target = e.target;
+            if (target.classList.contains('result-item')) {
+                const charId = target.dataset.charId;
+                const char = characterMap.get(charId);
+                if (char) {
+                    baseCharSearchInput.value = target.textContent;
+                    baseCharSearchInput.dataset.selectedId = charId;
+                    baseCharResults.style.display = 'none';
+                }
+            }
         });
 
         // 当搜索框失焦时，延迟隐藏结果列表，以便响应点击事件
@@ -348,67 +360,70 @@
         };
         populateTempList();
         
-        // 4. 绑定事件
-        document.getElementById('create-temp-char-btn').onclick = () => {
-            const baseId = baseCharSearchInput.dataset.selectedId;
-            const name = document.getElementById('temp-char-name-input').value.trim();
+        // 4. 使用事件委托统一处理创建和删除事件
+        avatarFormContainer.addEventListener('click', (e) => {
+            const target = e.target;
 
-            if (!baseId) { 
-                alert('请先从搜索结果中选择一个原型角色'); 
-                return; 
-            }
-            if (!name) { 
-                alert('临时名称不能为空'); 
-                return; 
-            }
-            
-            // 创建新的临时角色对象
-            const newId = `temp_${Date.now()}`;
-            const newTempChar = { id: newId, baseId: baseId, name: name };
-            
-            temporaryCharacters.push(newTempChar);
-            characterMap.set(newId, { 
-                id: newId, 
-                baseId: baseId, 
-                isTemporary: true, 
-                short_names: { 'zh-cn': name }, 
-                names: { en: name }
-            });
-            
-            updateBackend();
-            populateTempList(); // 刷新列表
+            // 处理创建按钮点击
+            if (target.id === 'create-temp-char-btn') {
+                const baseCharSearchInput = document.getElementById('base-char-search-input');
+                const tempCharNameInput = document.getElementById('temp-char-name-input');
+                const baseId = baseCharSearchInput.dataset.selectedId;
+                const name = tempCharNameInput.value.trim();
 
-            // 清空输入框
-            document.getElementById('temp-char-name-input').value = '';
-            baseCharSearchInput.value = '';
-            delete baseCharSearchInput.dataset.selectedId;
-        };
-        
-        // 使用事件委托处理删除按钮的点击事件
-        document.getElementById('temp-char-list').onclick = (e) => {
-            if (e.target.classList.contains('delete-temp-char-btn')) {
-                const idToDelete = e.target.dataset.id;
+                if (!baseId) { 
+                    alert('请先从搜索结果中选择一个原型角色'); 
+                    return; 
+                }
+                if (!name) { 
+                    alert('临时名称不能为空'); 
+                    return; 
+                }
+                
+                const newId = `temp_${Date.now()}`;
+                const newTempChar = { id: newId, baseId: baseId, name: name };
+                
+                temporaryCharacters.push(newTempChar);
+                characterMap.set(newId, { 
+                    id: newId, 
+                    baseId: baseId, 
+                    isTemporary: true, 
+                    short_names: { 'zh-cn': name }, 
+                    names: { en: name }
+                });
+                
+                updateBackend();
+                populateTempList(); // 刷新列表
+
+                tempCharNameInput.value = '';
+                baseCharSearchInput.value = '';
+                delete baseCharSearchInput.dataset.selectedId;
+            }
+
+            // 处理删除按钮点击
+            if (target.classList.contains('delete-temp-char-btn')) {
+                const idToDelete = target.dataset.id;
                 const tempCharToDelete = temporaryCharacters.find(tc => tc.id === idToDelete);
                 
-                // 弹出确认框
-                showConfirm(`删除临时人物 "${tempCharToDelete.name}"？所有使用它的对话行将被重置回其原型角色。`, () => {
-                    temporaryCharacters = temporaryCharacters.filter(c => c.id !== idToDelete);
-                    characterMap.delete(idToDelete);
-                    
-                    // 将所有使用该临时角色的对话行重置为原型角色
-                    if (tempCharToDelete) {
-                        scriptData.forEach(line => {
-                            if (line.characterId === idToDelete) {
-                                line.characterId = tempCharToDelete.baseId;
-                            }
-                        });
-                    }
-                    render();
-                    updateBackend();
-                    populateTempList(); // 刷新列表
-                });
+                if (tempCharToDelete) {
+                    showConfirm(`删除临时人物 "${tempCharToDelete.name}"？所有使用它的对话行将被重置回其原型角色。`, () => {
+                        temporaryCharacters = temporaryCharacters.filter(c => c.id !== idToDelete);
+                        characterMap.delete(idToDelete);
+                        
+                        if (tempCharToDelete) {
+                            scriptData.forEach(line => {
+                                if (line.characterId === idToDelete) {
+                                    line.characterId = tempCharToDelete.baseId;
+                                }
+                            });
+                        }
+                        render();
+                        updateBackend();
+                        populateTempList(); // 刷新列表
+                    });
+                }
             }
-        };
+        });
         
         // 5. 显示模态框并调整按钮状态
         avatarConfirmBtn.style.display = 'none'; // 隐藏主确认按钮
